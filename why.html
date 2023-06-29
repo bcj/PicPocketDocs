@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Why PicPocket? &#8212; PicPocket  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installing PicPocket" href="usage/installation.html" />
+    <link rel="prev" title="PicPocket" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="why-picpocket">
+<h1>Why PicPocket?<a class="headerlink" href="#why-picpocket" title="Permalink to this heading">¶</a></h1>
+<p>PicPocket is born out of the frustration that Apple’s <em>Photos</em> application forces you to store your photos in a database, and requires you to export those photos if you want to access them from outside <em>Photos</em>.
+It is likewise born out of a distrust in Google <em>Photos</em>, as it wants you to store your photos on their servers and limit how you can access the original files.</p>
+<p>The goal of PicPocket is to make it easier to manage your photos without PicPocket taking ownership of them, and while letting them exist as regular files on your computer.
+PicPocket provides tools for tagging and searching through your photos, and for transferring photos from your camera to your computer in an orderly way.</p>
+<section id="what-is-picpocket">
+<h2>What is PicPocket?<a class="headerlink" href="#what-is-picpocket" title="Permalink to this heading">¶</a></h2>
+<p>PicPocket is a database that stores metadata about your photos.
+This information contains descriptions, alt text, and ratings for photos, as well as a nested tagging structure that makes it easier to find what you’re looking for.</p>
+<p>PicPocket also provides functionality for copying new photos from your camera to your computer—allowing you to automatically store them by type and date.</p>
+<p>PicPocket provides an API for searching through your photos, and fetching image files based on criteria, so it can be used programmatically.</p>
+</section>
+<section id="what-picpocket-isn-t-yet-and-what-it-will-never-be">
+<h2>What PicPocket isn’t (Yet, and What it Will Never Be)<a class="headerlink" href="#what-picpocket-isn-t-yet-and-what-it-will-never-be" title="Permalink to this heading">¶</a></h2>
+<p>First and foremost, PicPocket is not commercial-grade software.
+This is hobby software being written by one person in their spare time.
+PicPocket’s features and functionality are limited by both what I have the time and interest in developing, and in what I am comfortable maintaining.
+This is software that I am entrusting with my own photos, so you can rest assured that all code will be thoroughly tested prior to release, and that any potentially-destructive action will err on the safest default (e.g., PicPocket will refuse to overwrite a photo on import, and defaults to leaving the file when an image is removed from the database).
+But this means that the UI will be clunkier than commercial software, updates will be smaller and less frequent, and that good feature requests may be rejected.</p>
+<p>PicPocket does not offer suggested tags for photos.
+It is unlikely to add any functionality like that in the future.
+Any such features will always be opt-in.
+PicPocket does not collect or share information about what photos you store in it, metadata you create for photos (such as tags or descriptions), or how you use PicPocket.
+Anything you do with PicPocket will stay within your local setup.</p>
+<p>PicPocket is not a photo editing tool.
+It’s unlikely that it will ever provide even the most-basic of editing controls.
+It may one day provide hooks for quickly opening up images in image editors, and its API means you could use it as part of your own pipeline for editing photos.</p>
+<p>PicPocket is not a photo backup tool.
+One of the many reasons PicPocket has you store your photos as regular files, is so that you can use whatever backup utilities you prefer to keep your photos safe.
+Hooks for backing up your photos on external devices (or remote servers) may one day be added—even then, the official PicPocket stance will be to use professionally vetted backup utilities either instead or as well.</p>
+<p>PicPocket is not multi-user software.
+It is not built for keeping track of millions of photos (at time of writing, it has been built to manage ~50k photos).
+It is written with the assumption that people would each have their own PicPocket database.
+As such, permissions for PicPocket are all-or-nothing.</p>
+<p>PicPocket is not yet lock-in free.
+While your images are immediately usable in another application, your tags are not.
+Image tags can be exported to a file (or accessed programmatically), but no utilities are provided for adding those tags to other programs.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">PicPocket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Why PicPocket?</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#what-is-picpocket">What is PicPocket?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#what-picpocket-isn-t-yet-and-what-it-will-never-be">What PicPocket isn’t (Yet, and What it Will Never Be)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="usage/installation.html">Installing PicPocket</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage/quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage/images.html">Managing Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">PicPocket API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="development/index.html">Developing PicPocket</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">PicPocket</a></li>
+      <li>Next: <a href="usage/installation.html" title="next chapter">Installing PicPocket</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, bcj.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/why.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

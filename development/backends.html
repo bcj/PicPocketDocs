@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Implementing Your Own Backend &#8212; PicPocket  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Testing" href="testing.html" />
+    <link rel="prev" title="Developing PicPocket" href="index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="implementing-your-own-backend">
+<h1>Implementing Your Own Backend<a class="headerlink" href="#implementing-your-own-backend" title="Permalink to this heading">¶</a></h1>
+<p>Support for this is still incredibly provisional.
+In theory, all you need to do is implement the <a class="reference internal" href="../api/python.html#picpocket.api.PicPocket" title="picpocket.api.PicPocket"><code class="xref py py-class docutils literal notranslate"><span class="pre">PicPocket</span></code></a> protocol and everything should work.
+Unfortunately, getting <a class="reference internal" href="../api/python.html#picpocket.initialize" title="picpocket.initialize"><code class="xref py py-func docutils literal notranslate"><span class="pre">initialize</span></code></a> or <a class="reference internal" href="../api/python.html#picpocket.load" title="picpocket.load"><code class="xref py py-func docutils literal notranslate"><span class="pre">load</span></code></a> requires modifying the <cite>APIS</cite> dict in the base module, so it can’t yet be done in a way that allows use of the <cite>cli &lt;api/cli&gt;</cite>.</p>
+<p>See the definition of <cite>testenv:py{311}-tests-postgres</cite> in <cite>tox.ini</cite> for information on how to run all tests against your backend.</p>
+<section id="adding-support-for-a-new-dbapi-2-0-compatible-database">
+<h2>Adding Support for a New DBAPI 2.0-Compatible Database<a class="headerlink" href="#adding-support-for-a-new-dbapi-2-0-compatible-database" title="Permalink to this heading">¶</a></h2>
+<p>If you want to support a database that has an asynchronous DBAPI-compatible package, it’s fairly straight-forward.
+PicPocket’s PostgreSQL and SQLite backends use the same code for almost all operations, and should require very little changes to the non-shared code as features are added to PicPocket.</p>
+<p>You will need to subclass <a class="reference internal" href="#picpocket.database.dbapi.DbApi" title="picpocket.database.dbapi.DbApi"><code class="xref py py-class docutils literal notranslate"><span class="pre">picpocket.database.dbapi.DbApi</span></code></a> and <a class="reference internal" href="#picpocket.database.logic.SQL" title="picpocket.database.logic.SQL"><code class="xref py py-class docutils literal notranslate"><span class="pre">picpocket.database.logic.SQL</span></code></a>.</p>
+<p>In practice, this might be slightly more difficult if your database’s functionality differs greatly from both PostgreSQL and SQLite.</p>
+<section id="dbapi">
+<h3>DbApi<a class="headerlink" href="#dbapi" title="Permalink to this heading">¶</a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">picpocket.database.dbapi.</span></span><span class="sig-name descname"><span class="pre">DbApi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi" title="Permalink to this definition">¶</a></dt>
+<dd><p>A DBAPI 2.0 Implementation of PicPocket</p>
+<p>This class implements all required to support the PicPocket protocol
+other than the configuration and mounts properties and the
+parse_connection_info, initialize, get_api_version, get_version, and
+matching_version methods</p>
+<p>To add support for a new database you need to implement those
+methods yourself as well as some new methods related to getting
+connection and cursor objects, and a class for generating sql
+statements (which is largely modelled on psycopg’s
+<a class="reference external" href="https://www.psycopg.org/psycopg3/docs/api/sql.html">sql</a> module).</p>
+<p>It will be assumed that an implementation is using the tables listed
+as class attributes (presently, LOCATIONS_TABLE, TASKS_TABLE,
+TASK_INVOCATIONS_TABLE, IMAGES_TABLE), that each of those tables
+will be named that attribute name in lowercase and without the
+_table. For all tables, it will be assumed that all columns listed
+exist. If your table uses different types, you will need to override
+that class attribute</p>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>DbApi additionaly assumed a tags table (with columns id, name,
+escaped_name, depth, description) and an image_tags table (with
+columns image, tag).</p>
+</div>
+<div class="admonition-todo admonition" id="id2">
+<p class="admonition-title">Todo</p>
+<p>DbApi only really does type formatting on columns it knows
+differ between the postgres and sqlite. Once PicPocket adds
+proper JSON support for filtering on exif data, the
+<a class="reference internal" href="#picpocket.database.logic.Types" title="picpocket.database.logic.Types"><code class="xref py py-class docutils literal notranslate"><span class="pre">Types</span></code></a> system will
+probably be addapted so that it accounts for input and output
+formats (e.g., postgres’s JSON types expects text input but
+provides a deserialized output vs. sqlite’s where input and
+output will both be strings but json operations are supported).</p>
+</div>
+<dl class="py property">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.sql">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">sql</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#picpocket.database.logic.SQL" title="picpocket.database.logic.SQL"><span class="pre">SQL</span></a></em><a class="headerlink" href="#picpocket.database.dbapi.DbApi.sql" title="Permalink to this definition">¶</a></dt>
+<dd><p>The sql object to use when dynamically generating sql.</p>
+<p>See <code class="xref py py-class docutils literal notranslate"><span class="pre">picpocket.types</span></code></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.connect">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">connect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.connect" title="Permalink to this definition">¶</a></dt>
+<dd><p>Establish a connection with the underlying database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A dbapi-compatible Connection object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.cursor">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cursor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connection</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">commit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AsyncContextManager</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.cursor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Yield a cursor that rolls back on error and optionally commits</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>connection</strong> – A connection object returned by connect</p></li>
+<li><p><strong>commit</strong> – Whether to commit on (successful) exit</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dbapi-compatible Cursor object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.ensure_foreign_keys">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ensure_foreign_keys</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cursor</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.ensure_foreign_keys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure a cursor will support cascading changes.</p>
+<p>This will be a no-op for most DBs (or an exception for DBs that
+cannot support it I guess?) and only exists because an SQLite
+cursor needs to run a pragma to enable this and we don’t want to
+do that on every single cursor creation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.import_data">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">import_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">locations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">pathlib.Path</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.import_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Import a PicPocket backup</p>
+<p>Load data (locations, tasks, images, tags) from a PicPocket
+backup created using <a class="reference internal" href="#picpocket.database.dbapi.DbApi.export_data" title="picpocket.database.dbapi.DbApi.export_data"><code class="xref py py-meth docutils literal notranslate"><span class="pre">export_data()</span></code></a>. This is the
+recommended way to migrate between backends.</p>
+<p>This method is safe to rerun as PicPocket will skip duplicates
+instead of overwriting.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This file will not contain the images themselves, just the
+metadata you’ve created for the image (tags, captions,
+alt text, etc.).</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – The JSON file to load data from.</p></li>
+<li><p><strong>locations</strong> – Only import data related to this set of
+locations. This can be supplied either as a list of
+locations or as a dict of location/path pairs. If a
+path is provided, it will be mounted prior to loading
+images and then unmounted afterward. When importing a
+location without a set path, this must be provided as a
+dict. For locations with paths definied within the
+backup, you can pass <cite>None</cite> as the path to use the
+default location.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.export_data">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">export_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">locations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.export_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a PicPocket backup</p>
+<p>Export data (locations, tasks, iamges, tags) from PicPocket.
+This is the recommended way to migrate between backends.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This file will not contain the images themselves, just the
+metadata you’ve created for the image (tags, captions,
+alt text, etc.).</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – Where to save teh JSON file to store data to.</p></li>
+<li><p><strong>locations</strong> – Only export images and task related to this
+location.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.add_location">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_location</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">removable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.add_location" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a new location to PicPocket.</p>
+<p>Locations represent sources to fetch images from (e.g., cameras)
+and storage locations to store data in. A location must be
+specified either as a source to import images from, a
+destination to import images to, or both.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – The (unique) name of the location being added. E.g.
+photos, “EOS 6D”, phone</p></li>
+<li><p><strong>path</strong> – The path where the location is/gets mounted. If this
+path is not consistent (or not unique), you may want to
+leave this blank and instead mount/unmount the drive as
+necessary.</p></li>
+<li><p><strong>description</strong> – A text description of what the location is/how
+it is used. E.g., “main photo storage”, “my digital
+camera”</p></li>
+<li><p><strong>source</strong> – Whether the location is somewhere images may be
+copied from (to a new location)</p></li>
+<li><p><strong>destination</strong> – Whether the location is somewhere images may be
+compied to.</p></li>
+<li><p><strong>removable</strong> – Whether the location is a permanent or removable
+storage device.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The integer id representing the location</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.edit_location">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">edit_location</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_or_id:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_name:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path:</span> <span class="pre">~pathlib.Path</span> <span class="pre">|</span> <span class="pre">~picpocket.internal_use.NotSupplied</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">&lt;picpocket.internal_use.NotSupplied</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">~picpocket.internal_use.NotSupplied</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">&lt;picpocket.internal_use.NotSupplied</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source:</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination:</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">removable:</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.edit_location" title="Permalink to this definition">¶</a></dt>
+<dd><p>Edit a PicPocket location.</p>
+<p>Edit information about about a PicPocket location.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name/id</strong> – the name or id of the location.</p></li>
+<li><p><strong>new_name</strong> – What to rename the location to.</p></li>
+<li><p><strong>path</strong> – Where the location gets mounted.</p></li>
+<li><p><strong>description</strong> – A description of the location.</p></li>
+<li><p><strong>source</strong> – Whether the location is a place images are imported from</p></li>
+<li><p><strong>destination</strong> – Whether the location is a place images are imported
+to.</p></li>
+<li><p><strong>removable</strong> – Whether the location is a permanent or removable
+storage device.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.remove_location">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">remove_location</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_or_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.remove_location" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a location from PicPocket.</p>
+<p>The location will not be removed if it has images associated
+with it unless explicitly asked. Even in that case, it will not
+touch the image files on disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name/id</strong> – the name or of the location.</p></li>
+<li><p><strong>force</strong> – Remove the location even if it currently has images
+associated with it and remove those images from the
+database.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Whether the location was deleted.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.get_location">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_location</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_or_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expect</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="../api/python.html#picpocket.database.types.Location" title="picpocket.database.types.Location"><span class="pre">Location</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.get_location" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get information about a location</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name/id</strong> – The location to find</p></li>
+<li><p><strong>expect</strong> – Error if the location doesn’t exist</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The matching location if it exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.list_locations">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">list_locations</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../api/python.html#picpocket.database.types.Location" title="picpocket.database.types.Location"><span class="pre">picpocket.database.types.Location</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.list_locations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fetch all known locations</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.mount">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mount</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_or_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.mount" title="Permalink to this definition">¶</a></dt>
+<dd><p>Supply a path where a location is currently available</p>
+<p>Mount a location to a specific path. For removable locations
+without unique or consistent mount points, this is how you alert
+PicPocket to its present location. This will also work for
+locations that have set attach points but are temporarily
+available at a different location. Mounting an already-mounted
+location will replace the previous mount point.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name/id</strong> – The location to mount</p></li>
+<li><p><strong>path</strong> – Where to mount the location</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.unmount">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">unmount</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_or_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.unmount" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a temporary mount point</p>
+<p>Unmount a location that was previously mounted. Unmounting a
+drive that isn’t mounted won’t cause an error.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name/id</strong> – The location to mount</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.import_location">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">import_location</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name_or_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_formats</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">creator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.import_location" title="Permalink to this definition">¶</a></dt>
+<dd><p>Import all images from a location</p>
+<p>Import all images that are stored within a location. If an image
+already exists within PicPocket, its user-supplied won’t be
+updated but properties of the file itself (such as dimensions or
+exif data) will be updated in PicPocket if its changed on disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name/id</strong> – The location to import</p></li>
+<li><p><strong>file_formats</strong> – Only import images that have these suffixes.
+Suffixes can be supplied with or without leading dot.
+If not supplied, the PicPocket default file formats
+will be imported.</p></li>
+<li><p><strong>batch_size</strong> – How often to commit while importing images.</p></li>
+<li><p><strong>creator</strong> – Mark all images as having been created by this
+person.</p></li>
+<li><p><strong>tags</strong> – Apply all these tags to all imported images.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The ids of all images that were added (or edited)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.add_task">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">creator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination_format</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_formats</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.add_task" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a repeatable task to PicPocket.</p>
+<div class="admonition-todo admonition" id="id3">
+<p class="admonition-title">Todo</p>
+<p>Perform operations on images, clean up path stuff, scheduled
+and automatic tasks</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method will be changing substantially as support for
+other types of task are added.</p>
+</div>
+<p>Add a task to PicPocket. Currently, all supported tasks are
+imports from one known location to another. Support for things
+like converting images on import are forthcoming. Images will be
+copied from the source location without modifying the source
+image. Tasks will refuse to overwrite existing files on import.</p>
+<p>see <a class="reference internal" href="../api/python.html#module-picpocket.tasks" title="picpocket.tasks"><code class="xref py py-mod docutils literal notranslate"><span class="pre">picpocket.tasks</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – What to call the task (must be unique)</p></li>
+<li><p><strong>source</strong> – The name/id of the location to import images from</p></li>
+<li><p><strong>destination</strong> – The name/id of the location to copy images to</p></li>
+<li><p><strong>creator</strong> – Who to list as the creator of all imported images</p></li>
+<li><p><strong>tags</strong> – Apply these tags to all imported images</p></li>
+<li><p><strong>source_path</strong> – <p>Where, (relative to the source location’s root)
+to start looking for images. If not supplied, root will
+be used. The following dyamic directory names are allowed:</p>
+<ul>
+<li><p>{year}: A year</p></li>
+<li><p>{month}: A month</p></li>
+<li><p>{day}: A day</p></li>
+<li><p>{date:FORMAT}: A date in the supplied format</p></li>
+<li><p>{regex:PATTERN}: A name that matches a regex</p></li>
+<li><p>{str:RAW}: A folder name that contains {</p></li>
+</ul>
+</p></li>
+<li><p><strong>destination_format</strong> – <p>Where (relative to the destination root)
+images should be copied to. This is supplied as a format
+string with the following allowed formatters:</p>
+<ul>
+<li><p>path: The source filepath (relative to the source) root.</p></li>
+<li><p>file: The file’s name</p></li>
+<li><p>name: The file’s name (without extension)</p></li>
+<li><p>extension: The file’s extension (without the leading
+dot).</p></li>
+<li><p>uuid: A UUID4 hex</p></li>
+<li><p>date: A date object representing the source image’s
+last modified time. You can supply the format to save
+the date using strftime formatting (e.g.
+<cite>date:%Y-%m-%d-%H-%M-%S</cite>)</p></li>
+<li><p>hash: A hash of the image contents</p></li>
+<li><p>index: A 1-indexed number representing the order
+images are encountered by the running task. PicPocket
+makes no promised about the order images are added</p></li>
+</ul>
+</p></li>
+<li><p><strong>file_formats</strong> – Only import images that have these suffixes.
+Suffixes can be supplied with or without leading dot.
+If not supplied, the PicPocket default file formats
+will be imported.</p></li>
+<li><p><strong>force</strong> – Overwrite any previously-existing task with this name</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.run_task">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">run_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">since</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">full</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.run_task" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a task</p>
+<div class="admonition-todo admonition" id="id4">
+<p class="admonition-title">Todo</p>
+<p>Allow offsets for last ran.</p>
+</div>
+<p>Running a task will never overwrite an image file, but it will
+re-add images that were deleted if the source image still
+matches all criteria. When running a task, the time the task
+previously ran will be supplied and any specified date-based
+path segments from before that last ran date will be skipped, as
+will any files with last-modified dates that are earlier.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – The name of the task to run</p></li>
+<li><p><strong>since</strong> – Ignore files with last-modified dates older than this
+date and in folders representing earlier dates. Ignored
+if full is supplied.</p></li>
+<li><p><strong>full</strong> – Don’t filter directories based on the last-run date
+of the task.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The ids of all imported images.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.remove_task">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">remove_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.remove_task" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a task</p>
+<p>Running this on a non-existent task will not error.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>remove</strong> (<em>name The name</em><em> of </em><em>the task to</em>) – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.get_task">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="../api/python.html#picpocket.database.types.Task" title="picpocket.database.types.Task"><span class="pre">Task</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.get_task" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the definition of an existing task</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.list_tasks">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">list_tasks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../api/python.html#picpocket.database.types.Task" title="picpocket.database.types.Task"><span class="pre">picpocket.database.types.Task</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.list_tasks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all tasks in PicPocket</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.add_image_copy">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_image_copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_or_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">creator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">caption</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rating</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.add_image_copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy an image into PicPocket</p>
+<p>Create a copy of a supplied image and then add that image to
+PicPocket.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source</strong> – The image to create a copy of</p></li>
+<li><p><strong>name/id</strong> – The location to create a copy of the image in</p></li>
+<li><p><strong>destination</strong> – The path (relative to the location root) to
+copy the image to</p></li>
+<li><p><strong>creator</strong> – Who made the image</p></li>
+<li><p><strong>title</strong> – The title of the image</p></li>
+<li><p><strong>caption</strong> – A caption of the image</p></li>
+<li><p><strong>alt</strong> – Descriptive text of the image to be used as alt text</p></li>
+<li><p><strong>rating</strong> – A numeric rating of the image</p></li>
+<li><p><strong>tags</strong> – Any number of tags to apply to the image</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The id of the copied image</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.edit_image">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">edit_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">creator:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">~picpocket.internal_use.NotSupplied</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">&lt;picpocket.internal_use.NotSupplied</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">~picpocket.internal_use.NotSupplied</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">&lt;picpocket.internal_use.NotSupplied</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">caption:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">~picpocket.internal_use.NotSupplied</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">&lt;picpocket.internal_use.NotSupplied</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alt:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">~picpocket.internal_use.NotSupplied</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">&lt;picpocket.internal_use.NotSupplied</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rating:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">~picpocket.internal_use.NotSupplied</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">&lt;picpocket.internal_use.NotSupplied</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.edit_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Edit information about an image.</p>
+<p>Edit user-supplied metadata about an image. For all properties,
+supplying <cite>None</cite> will erase the existing value of that property</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> – The image to edit</p></li>
+<li><p><strong>creator</strong> – Who made the image</p></li>
+<li><p><strong>title</strong> – The title of the image</p></li>
+<li><p><strong>caption</strong> – A caption of the image</p></li>
+<li><p><strong>alt</strong> – Descriptive text of the image to be used as alt text</p></li>
+<li><p><strong>rating</strong> – A numeric rating of the image</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.tag_image">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">tag_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.tag_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply a tag to an image</p>
+<p>Tags in PicPocket are nestable, and are supplied as lists of
+strings (e.g., <cite>[“bird”, “goose”, “Canada Goose”]</cite>). When adding
+a tag, it’s recommended that you don’t add its parents.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> – The image to tag</p></li>
+<li><p><strong>tag</strong> – The tag to apply</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.untag_image">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">untag_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.untag_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a tag from an image</p>
+<div class="admonition-todo admonition" id="id5">
+<p class="admonition-title">Todo</p>
+<p>allow cascading?</p>
+</div>
+<p>Removing a non-existent tag will not error.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> – The image to untag</p></li>
+<li><p><strong>tag</strong> – The tag to remove</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.move_image">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">move_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.move_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Move an image.</p>
+<p>PicPocket will attempt to move both the on-disk location as well
+as its internal record. If the current file location is empty
+and a file exists at the destination, PicPocket will assume the
+file was already moved on-disk and will update its records. In
+all other cases, if a file exists at the destination (either
+on-disk or in PicPocket), PicPocket will error.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> – the image to move</p></li>
+<li><p><strong>path</strong> – The new location (relative to the root of its
+destination location).</p></li>
+<li><p><strong>location</strong> – The id of the location to move the image to. If
+unsupplied, the file will be moved within its source
+location.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.remove_image">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">remove_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delete</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.remove_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove an image from PicPocket</p>
+<p>PicPocket will only delete the file on-disk if specifically
+requested.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> – The image to remove from PicPocket</p></li>
+<li><p><strong>delete</strong> – Delete the image on-disk as well. If <cite>True</cite>, the
+image will only be removed from PicPocket if the
+delete is successful</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.find_image">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">find_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="../api/python.html#picpocket.database.types.Image" title="picpocket.database.types.Image"><span class="pre">Image</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.find_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Attempt to find an image given its path</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> – The full path to the image</p></li>
+<li><p><strong>tags</strong> – Whether to fetch the image’s tags</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The image, if it exists in PicPocket</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.get_image">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="../api/python.html#picpocket.database.types.Image" title="picpocket.database.types.Image"><span class="pre">Image</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.get_image" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get an image in PicPocket</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> – The image to fetch</p></li>
+<li><p><strong>tags</strong> – Whether to fetch the image’s tags</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The image matching the id (if it exists)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.count_images">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">count_images</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Comparison</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tagged</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">any_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reachable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.count_images" title="Permalink to this definition">¶</a></dt>
+<dd><p>Count the number of images in PicPocket</p>
+<p>Get the number of images in PicPocket that match a criteria.</p>
+<dl class="simple">
+<dt>You can filter the result on any of the following properties:</dt><dd><ul class="simple">
+<li><p>name: The name of the image (without extension)</p></li>
+<li><p>extension: The file suffix (without leading dot)</p></li>
+<li><p>creator: Who created the image</p></li>
+<li><p>location: Only include images at this location</p></li>
+<li><p>path: The text path, relative to its location’s root</p></li>
+<li><p>title: The title of the image</p></li>
+<li><p>caption: The image caption</p></li>
+<li><p>alt: The image alt text</p></li>
+<li><p>rating: The rating of the image.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filter</strong> – Only include images that match this filter</p></li>
+<li><p><strong>tagged</strong> – Only include images that are(n’t) tagged</p></li>
+<li><p><strong>any_tags</strong> – Only include images that are tagged with at least
+one of the supplied tags</p></li>
+<li><p><strong>all_tags</strong> – Only include images that are tagged with all of
+the supplied tags</p></li>
+<li><p><strong>no_tags</strong> – Don’t include images that have any of the supplied
+tags</p></li>
+<li><p><strong>reachable</strong> – Only include images that are currently reachable</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The number of images that match the criteria</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.get_image_ids">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_image_ids</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Comparison</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tagged</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">any_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reachable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.get_image_ids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the ids of images in PicPocket</p>
+<p>Get the ids of images in PicPocket that match a criteria.</p>
+<p>You can filter and order the result on any of the following
+properties:</p>
+<ul class="simple">
+<li><p>name: The name of the image (without extension)</p></li>
+<li><p>extension: The file suffix (without leading dot)</p></li>
+<li><p>creator: Who created the image</p></li>
+<li><p>location: Only include images at this location</p></li>
+<li><p>path: The text path, relative to its location’s root</p></li>
+<li><p>title: The title of the image</p></li>
+<li><p>caption: The image caption</p></li>
+<li><p>alt: The image alt text</p></li>
+<li><p>rating: The rating of the image.</p></li>
+</ul>
+<p>When ordering images, properties will be sorted in ascending
+order by default (e.g., for ratings: Lower rated images will be
+supplied first). Putting a minus sign (-) in front of that
+property will sort in descending order instead. You can also
+use the exclamation mark (!) to specify whether images lacking
+a property (e.g., unrated images) should be sorted at the
+beginning or the end (e.g., !rating will order unrated images
+and then worst-to-best; rating! will order unrated images after
+the best images). When supplying unspecified properties in
+descending order, the exclamation mark should be supplied after
+the minus sign (e.g., -!rating will return untagged images and
+then best-to-worst). As well as above properties, ‘random’ can
+be used to order images randomly. Random ordering can be done
+after properties (e.g., -!rating,random will return images
+unrated and then best to worst, but with unrated images and
+images with a given rating will be returned in a random order).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Orderings are not preserved across invocations, so running
+repeatedly with increasing offsets is not guaranteed to
+include all images or supply each images exactly once. That
+said, if you don’t add/edit/remove images between
+invocations (and don’t use random ordering), it should be
+fine.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filter</strong> – Only include images that match this filter</p></li>
+<li><p><strong>tagged</strong> – Only include images that are(n’t) tagged</p></li>
+<li><p><strong>any_tags</strong> – Only include images that are tagged with at least
+one of the supplied tags</p></li>
+<li><p><strong>all_tags</strong> – Only include images that are tagged with all of
+the supplied tags</p></li>
+<li><p><strong>no_tags</strong> – Don’t include images that have any of the supplied
+tags</p></li>
+<li><p><strong>reachable</strong> – Only include images that are currently reachable</p></li>
+<li><p><strong>order</strong> – how to sort the returned ids as a list of properties</p></li>
+<li><p><strong>limit</strong> – Only return this many image ids</p></li>
+<li><p><strong>offset</strong> – If limit is supplied, start returing images from
+this offset.</p></li>
+<li><p><strong>reachable</strong> – Only include images that are(n’t) currently
+reachable</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The ids of all images that match this criteria</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.search_images">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">search_images</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Comparison</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tagged</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">any_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_tags</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reachable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../api/python.html#picpocket.database.types.Image" title="picpocket.database.types.Image"><span class="pre">picpocket.database.types.Image</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.search_images" title="Permalink to this definition">¶</a></dt>
+<dd><p>Search images in PicPocket</p>
+<p>Get images in PicPocket that match a criteria.</p>
+<p>You can filter and order the result on any of the following
+properties:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>name: The name of the image (without extension)</p></li>
+<li><p>extension: The file suffix (without leading dot)</p></li>
+<li><p>creator: Who created the image</p></li>
+<li><p>location: Only include images at this location</p></li>
+<li><p>path: The text path, relative to its location’s root</p></li>
+<li><p>title: The title of the image</p></li>
+<li><p>caption: The image caption</p></li>
+<li><p>alt: The image alt text</p></li>
+<li><p>rating: The rating of the image.</p></li>
+</ul>
+</div></blockquote>
+<p>When ordering images, properties will be sorted in ascending
+order by default (e.g., for ratings: Lower rated images will be
+supplied first). Putting a minus sign (-) in front of that
+property will sort in descending order instead. You can also
+use the exclamation mark (!) to specify whether images lacking
+a property (e.g., unrated images) should be sorted at the
+beginning or the end (e.g., !rating will order unrated images
+and then worst-to-best; rating! will order unrated images after
+the best images). When supplying unspecified properties in
+descending order, the exclamation mark should be supplied after
+the minus sign (e.g., -!rating will return untagged images and
+then best-to-worst). As well as above properties, ‘random’ can
+be used to order images randomly. Random ordering can be done
+after properties (e.g., -!rating,random will return images
+unrated and then best to worst, but with unrated images and
+images with a given rating will be returned in a random order).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Orderings are not preserved across invocations, so running
+repeatedly with increasing offsets is not guaranteed to
+include all images or supply each images exactly once. That
+said, if you don’t add/edit/remove images between
+invocations (and don’t use random ordering), it should be
+fine.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filter</strong> – Only include images that match this filter</p></li>
+<li><p><strong>tagged</strong> – Only include images that are(n’t) tagged</p></li>
+<li><p><strong>any_tags</strong> – Only include images that are tagged with at least
+one of the supplied tags</p></li>
+<li><p><strong>all_tags</strong> – Only include images that are tagged with all of
+the supplied tags</p></li>
+<li><p><strong>no_tags</strong> – Don’t include images that have any of the supplied
+tags</p></li>
+<li><p><strong>reachable</strong> – Only include images that are currently reachable</p></li>
+<li><p><strong>order</strong> – how to sort the returned ids as a list of properties</p></li>
+<li><p><strong>limit</strong> – Only return this many image ids</p></li>
+<li><p><strong>offset</strong> – If limit is supplied, start returing images from
+this offset.</p></li>
+<li><p><strong>reachable</strong> – Only include images that are(n’t) currently reachable</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The images that match this criteria</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.verify_image_files">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">verify_image_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../api/python.html#picpocket.database.types.Image" title="picpocket.database.types.Image"><span class="pre">picpocket.database.types.Image</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.verify_image_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check that images in PicPocket exist on-disk</p>
+<p>Check that images exist on-disk and that stored file information
+is accurate. If file metadata (e.g., dimensiosns, exif data) has
+changed, it will be updated as necessary. PicPocket will not
+remove missing images from its database.</p>
+<p>This method will skip any removable locations that aren’t
+currently attached.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>location</strong> – Only check images in this location</p></li>
+<li><p><strong>directory</strong> (<em>path Only scan images within this</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>All images that exist in PicPocket that can’t be found
+on-disk.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.add_tag">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_tag</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tag:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">~picpocket.internal_use.NotSupplied</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">&lt;picpocket.internal_use.NotSupplied</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.add_tag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a tag to PicPocket</p>
+<p>Tags in PicPocket are nestable, and are supplied as lists of
+strings (e.g., <cite>[“bird”, “goose”, “Canada Goose”]</cite>). You don’t
+need to explicitly add tags (tagging an image will create that
+tag). You only need to add a tag if you want to have a
+description associated with a tag.</p>
+<p>Adding an existing tag will not error, and if supplied, the
+description will be updated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tag</strong> – The tag to add</p></li>
+<li><p><strong>description</strong> – A description of the tag</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.move_tag">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">move_tag</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">current</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cascade</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.move_tag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Move a tag to a new name</p>
+<p>If a tag already exists with the same name, the two tags will
+be merged (keeping that tag’s description).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Cascade is always based on the supplied tag, not where the
+change was made in the tag. Even if you edit a parent
+section of the tag’s name, it will only cascade to this
+tag’s children.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>current</strong> – The name of the tag</p></li>
+<li><p><strong>new</strong> – The new name of the tag</p></li>
+<li><p><strong>cascade</strong> – Whether to move child tags as well.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The number of moved tags</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.remove_tag">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">remove_tag</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cascade</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.remove_tag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a tag from PicPocket</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tag</strong> – The tag to remove</p></li>
+<li><p><strong>cascade</strong> – If <cite>True</cite>, also remove any tags that are
+descendents of this tag</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.get_tag">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_tag</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">children</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="../api/python.html#picpocket.database.types.Tag" title="picpocket.database.types.Tag"><span class="pre">Tag</span></a></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.get_tag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the description of a tag</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – The tag to get the description of</p></li>
+<li><p><strong>children</strong> – Fetch children as well</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The tag</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.all_tag_names">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">all_tag_names</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.all_tag_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the names of all used tags</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The list of tags</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.all_tags">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">all_tags</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.all_tags" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the tags PicPocket is aware of</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A recursive dict representing the known tag structure within
+PicPocket. The outer level will be the names of root level
+tags and for each tag, their value will be a dict containing
+their description and the dict of their child tags.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.create_session">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">create_session</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expires</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.create_session" title="Permalink to this definition">¶</a></dt>
+<dd><p>Store temporary data about a user query</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – The JSON-serializable data</p></li>
+<li><p><strong>expires</strong> – The expiration date for the data (if not supplied,
+the default will be used).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the session id</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.get_session">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_session</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.get_session" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fetch session data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_id</strong> – The id of the session</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the session data, if it exists</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.prune_sessions">
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">prune_sessions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.prune_sessions" title="Permalink to this definition">¶</a></dt>
+<dd><p>remove any expired sessions</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="id6">
+<h3>SQL<a class="headerlink" href="#id6" title="Permalink to this heading">¶</a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="picpocket.database.logic.Types">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">picpocket.database.logic.</span></span><span class="sig-name descname"><span class="pre">Types</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.logic.Types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Types of PicPocket property</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="picpocket.database.logic.Types.BOOLEAN">
+<span class="sig-name descname"><span class="pre">BOOLEAN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'boolean'</span></em><a class="headerlink" href="#picpocket.database.logic.Types.BOOLEAN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="picpocket.database.logic.Types.DATETIME">
+<span class="sig-name descname"><span class="pre">DATETIME</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'datetime'</span></em><a class="headerlink" href="#picpocket.database.logic.Types.DATETIME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="picpocket.database.logic.Types.ID">
+<span class="sig-name descname"><span class="pre">ID</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'id'</span></em><a class="headerlink" href="#picpocket.database.logic.Types.ID" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="picpocket.database.logic.Types.JSON">
+<span class="sig-name descname"><span class="pre">JSON</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'json'</span></em><a class="headerlink" href="#picpocket.database.logic.Types.JSON" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="picpocket.database.logic.Types.NUMBER">
+<span class="sig-name descname"><span class="pre">NUMBER</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'number'</span></em><a class="headerlink" href="#picpocket.database.logic.Types.NUMBER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="picpocket.database.logic.Types.TEXT">
+<span class="sig-name descname"><span class="pre">TEXT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'text'</span></em><a class="headerlink" href="#picpocket.database.logic.Types.TEXT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">picpocket.database.logic.</span></span><span class="sig-name descname"><span class="pre">SQL</span></span><a class="headerlink" href="#picpocket.database.logic.SQL" title="Permalink to this definition">¶</a></dt>
+<dd><p>A class for configuring how to manage SQL for a given database.</p>
+<p>This includes some checks for what features the database supports as
+well as methods for crafting safe query strings the database will
+accept. The latter are modelled on psycopg’s
+<cite>sql &lt;https://www.psycopg.org/psycopg3/docs/api/sql.html&gt;</cite> module
+with the default implementations providing the support SQLite would
+require.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.types">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">set</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#picpocket.database.logic.Types" title="picpocket.database.logic.Types"><span class="pre">picpocket.database.logic.Types</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#picpocket.database.logic.SQL.types" title="Permalink to this definition">¶</a></dt>
+<dd><p>The supported data types</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.arrays">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">arrays</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#picpocket.database.logic.SQL.arrays" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whether the database supports arrays</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.param">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">param</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#picpocket.database.logic.SQL.param" title="Permalink to this definition">¶</a></dt>
+<dd><p>The symbol the database uses for positional paramaters.</p>
+<p>We can’t just use ‘paramstyle’ because APIs are inconsistent
+on whether they use that to refer to their positional or named
+param style.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This method should not be used in conjunction with any of
+the below formatting methods!</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a symbol to use when generating SQL that uses positional
+placeholders.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.format">
+<span class="sig-name descname"><span class="pre">format</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">statement</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">parts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.logic.SQL.format" title="Permalink to this definition">¶</a></dt>
+<dd><p>add sections (e.g., identifiers, placeholders) to a statement</p>
+<p>The base statement should be using {} for positional formatting
+and each part being formatted in should represent
+already-formatted sql (using either format or any of the other
+sql methods).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>statment</strong> – The statement to format</p></li>
+<li><p><strong>parts</strong> – the sections to add to the statement</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The formatted statement.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.join">
+<span class="sig-name descname"><span class="pre">join</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">joiner</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.logic.SQL.join" title="Permalink to this definition">¶</a></dt>
+<dd><p>join together several sections of a statement</p>
+<p>Parts should already be formatted by another sql format method
+before being passed in to join.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>joiner</strong> – The string to use to join the sections</p></li>
+<li><p><strong>parts</strong> – The sections to join together</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The formatted section</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.identifier">
+<span class="sig-name descname"><span class="pre">identifier</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">identifier</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.logic.SQL.identifier" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format an identifier (i.e., table, column names)</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The default implementation is written with the assumption
+that identifiers will only be passed in from a reliable
+source (i.e., PicPocket’s own API) and not from user
+input. This method is not thorough enough to be trusted
+with user-supplied identifiers.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>identifier</strong> – the table/column name</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A formatted version of the identifier</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.literal">
+<span class="sig-name descname"><span class="pre">literal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">literal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.logic.SQL.literal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format a literal (e.g., a number or string)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>literal</strong> – the literal to format</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A formatted version of that literal</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.placeholder">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">placeholder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">placeholder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#picpocket.database.logic.SQL.placeholder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format a named placeholder</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>placeholder</strong> – the placeholder to format</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A formatted version of that placeholder</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="picpocket.database.logic.SQL.escape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">escape</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#picpocket.database.logic.SQL.escape" title="Permalink to this definition">¶</a></dt>
+<dd><p>The symbol used to escape search terms for LIKE queries</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PicPocket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../why.html">Why PicPocket?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/installation.html">Installing PicPocket</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/images.html">Managing Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">PicPocket API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Developing PicPocket</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">How to Adapt PicPocket to Another Database</a></li>
+<li class="toctree-l2"><a class="reference internal" href="testing.html">How to Run Tests</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Developing PicPocket</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Developing PicPocket</a></li>
+      <li>Next: <a href="testing.html" title="next chapter">Testing</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, bcj.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/development/backends.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
