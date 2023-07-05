@@ -13,7 +13,7 @@
     <script src="../_static/sphinx_highlight.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="WEB Interface" href="web.html" />
+    <link rel="next" title="Web Interface" href="web.html" />
     <link rel="prev" title="PicPocket API" href="index.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -464,7 +464,7 @@ be used. The following dyamic directory names are allowed:</p>
 images should be copied to. This is supplied as a format
 string with the following allowed formatters:</p>
 <ul>
-<li><p>path: The source filepath (relative to the source) root.</p></li>
+<li><p>directory: The source filepath (relative to the source) root.</p></li>
 <li><p>file: The file’s name</p></li>
 <li><p>name: The file’s name (without extension)</p></li>
 <li><p>extension: The file’s extension (without the leading
@@ -477,7 +477,7 @@ the date using strftime formatting (e.g.
 <li><p>hash: A hash of the image contents</p></li>
 <li><p>index: A 1-indexed number representing the order
 images are encountered by the running task. PicPocket
-makes no promised about the order images are added</p></li>
+makes no promises about the order images are added</p></li>
 </ul>
 </p></li>
 <li><p><strong>file_formats</strong> – Only import images that have these suffixes.
@@ -706,7 +706,7 @@ delete is successful</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="picpocket.api.PicPocket.verify_image_files">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">verify_image_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#picpocket.database.types.Image" title="picpocket.database.types.Image"><span class="pre">picpocket.database.types.Image</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.api.PicPocket.verify_image_files" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">verify_image_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reparse_exif</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#picpocket.database.types.Image" title="picpocket.database.types.Image"><span class="pre">picpocket.database.types.Image</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.api.PicPocket.verify_image_files" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check that images in PicPocket exist on-disk</p>
 <p>Check that images exist on-disk and that stored file information
 is accurate. If file metadata (e.g., dimensiosns, exif data) has
@@ -718,7 +718,9 @@ currently attached.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>location</strong> – Only check images in this location</p></li>
-<li><p><strong>directory</strong> (<em>path Only scan images within this</em>) – </p></li>
+<li><p><strong>path</strong> – Only scan images within this directory</p></li>
+<li><p><strong>reparse_exif</strong> – Reread EXIF data even if the image hasn’t been
+touched</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1578,10 +1580,13 @@ otherwise <cite>None</cite></p>
 <li class="toctree-l1"><a class="reference internal" href="../why.html">Why PicPocket?</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../usage/installation.html">Installing PicPocket</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../usage/images.html">Managing Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/locations.html">Locations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/images.html">Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/tags.html">Tags</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/tasks.html">Tasks</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">PicPocket API</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Python: The base API PicPocket Provides</a></li>
-<li class="toctree-l2"><a class="reference internal" href="web.html">WEB: A web interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="web.html">Web: A web interface</a></li>
 <li class="toctree-l2"><a class="reference internal" href="cli.html">CLI: A command-line interface</a></li>
 </ul>
 </li>
@@ -1594,7 +1599,7 @@ otherwise <cite>None</cite></p>
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="index.html">PicPocket API</a><ul>
       <li>Previous: <a href="index.html" title="previous chapter">PicPocket API</a></li>
-      <li>Next: <a href="web.html" title="next chapter">WEB Interface</a></li>
+      <li>Next: <a href="web.html" title="next chapter">Web Interface</a></li>
   </ul></li>
   </ul></li>
 </ul>

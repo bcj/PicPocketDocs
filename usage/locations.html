@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Locations &#8212; PicPocket  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Images" href="images.html" />
+    <link rel="prev" title="Quick Start" href="quickstart.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="locations">
+<h1>Locations<a class="headerlink" href="#locations" title="Permalink to this heading">¶</a></h1>
+<p>Locations represent directories on your computer where PicPocket can find <a class="reference internal" href="images.html"><span class="doc">images</span></a>.
+Locations can either represent <a class="reference internal" href="#sources"><span class="std std-ref">Sources</span></a> to fetch images from, or <a class="reference internal" href="#destinations"><span class="std std-ref">Destinations</span></a> where images should be stored.</p>
+<section id="kinds-of-location">
+<h2>Kinds of Location<a class="headerlink" href="#kinds-of-location" title="Permalink to this heading">¶</a></h2>
+<section id="sources">
+<h3>Sources<a class="headerlink" href="#sources" title="Permalink to this heading">¶</a></h3>
+<p>A source represents a location where new images come from (e.g., the memory card of your Camera).
+PicPocket does not directly keep track of images on a source location.</p>
+<p>PicPocket provides <a class="reference internal" href="tasks.html"><span class="doc">Tasks</span></a> as the preferred way to add new images to your computer, and to PicPocket.</p>
+</section>
+<section id="destinations">
+<h3>Destinations<a class="headerlink" href="#destinations" title="Permalink to this heading">¶</a></h3>
+<p>A destination represents a location on your computer where you store your images (e.g., the <em>Pictures</em> folder).</p>
+<p>PicPocket can copy images into your destination using <a class="reference internal" href="tasks.html"><span class="doc">Tasks</span></a>, and can move an image to a new location if you ask it to, but it will make no changes to this directory on its own.</p>
+</section>
+</section>
+<section id="properties">
+<h2>Properties<a class="headerlink" href="#properties" title="Permalink to this heading">¶</a></h2>
+<p>There are several properties associated with locations in PicPocket:</p>
+<dl class="simple">
+<dt>name</dt><dd><p>A unique name that succinctly describes what the location is</p>
+</dd>
+<dt>description</dt><dd><p>A description of what the location is/what it’s used for. Descriptions are for your own purposes</p>
+</dd>
+<dt>path</dt><dd><p>The file-path to the root of the location. Locations do not need to always be present (though operations requiring the actual image file will only work when it’s present). Unless a device does not attach at a specific location, or the location isn’t unique (i.e., another device may sometimes be at that location), you should provide a path.</p>
+</dd>
+<dt>type</dt><dd><p>Either Source or Destination</p>
+</dd>
+<dt>removable</dt><dd><p>Whether the location is expected to always be available (e.g., a folder on your computer), or may not always be present (e.g., a memory card)</p>
+</dd>
+</dl>
+</section>
+<section id="actions">
+<h2>Actions<a class="headerlink" href="#actions" title="Permalink to this heading">¶</a></h2>
+<dl>
+<dt>Mount</dt><dd><p>If you did not provide a path for a location (or you did, but the location is temporarily accessible at a different path than normal), you will need to ‘mount’ it, by telling PicPocket where it is currently accessible.</p>
+<p>When using the web version of PicPocket, a location will remain mounted until you unmount it, or until the server is restarted. When using the Python API, a location will be mounted until you mount it or end the API session. On the command line, you will need to pass a mount path with every operation.</p>
+</dd>
+<dt>Unmount</dt><dd><p>Tell PicPocket that a location is no longer available at a temporary location.</p>
+</dd>
+<dt>Import (destinations only)</dt><dd><p>Add any images stored in a destination to PicPocket. PicPocket will not move or modify the images itself, but it will read them and add information about them to its own database.</p>
+<p>PicPocket is written with the assumption that you will do this when you first add a destination to PicPocket, and then not again. It is safe to rerun this, though it will re-add any images you removed from PicPocket and it will be slow on large destinations</p>
+</dd>
+<dt>Edit</dt><dd><p>Edit information about a location</p>
+</dd>
+<dt>Remove</dt><dd><p>Tell PicPocket to forget about a location.</p>
+<p>Removing a location will remove any images from PicPocket stored on that location (but will not touch the image files themselves!). It will also delete any tasks that rely on that location.</p>
+</dd>
+</dl>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PicPocket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../why.html">Why PicPocket?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installing PicPocket</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Locations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#kinds-of-location">Kinds of Location</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#properties">Properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#actions">Actions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="images.html">Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tags.html">Tags</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tasks.html">Tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">PicPocket API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development/index.html">Developing PicPocket</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="quickstart.html" title="previous chapter">Quick Start</a></li>
+      <li>Next: <a href="images.html" title="next chapter">Images</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, bcj.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/usage/locations.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

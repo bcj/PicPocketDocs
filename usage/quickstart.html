@@ -13,7 +13,7 @@
     <script src="../_static/sphinx_highlight.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Managing Images" href="images.html" />
+    <link rel="next" title="Locations" href="locations.html" />
     <link rel="prev" title="Installing PicPocket" href="installation.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -37,7 +37,7 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>initialize
 </pre></div>
 </div>
-<p>This will store PicPocket’s configuration data (and its SQLite) within the directory <cite>~/.config/picpocket</cite>.
+<p>This will store PicPocket’s configuration data (and its SQLite database) within the directory <cite>~/.config/picpocket</cite>.
 You can specify a directory to save this information, but you will then need to specify that directory whenever you run PicPocket.</p>
 <p>If you are using the PostgreSQL backend, you will need to specify the backend and credentials:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>initialize<span class="w"> </span>postgres<span class="w"> </span><span class="se">\</span>
@@ -57,19 +57,64 @@ You can specify a directory to save this information, but you will then need to 
 <p>Your connection is not encrypted, no password is required, and you can use PicPocket to delete files on your computer.
 Until several of those change, you should not make it generally accessible.</p>
 </div>
-<section id="locations">
-<h2>Locations<a class="headerlink" href="#locations" title="Permalink to this heading">¶</a></h2>
-<p>Locations in PicPocket represent either sources to import images from (e.g., a camera’s memory card), or a destination to copy images to (e.g., the Pictures directory on your computer).</p>
-<p>The following information can be provided for a location:</p>
-<ul class="simple">
-<li><p>name: The unique name of the location (e.g., camera, EM1 Mark III, pictures, external storage). The level of specificity needed depends on how many devices you have. If you only have one camera and are storing photos in one place, <em>camera</em> and <em>storage</em> are probably specific enough. You can always rename locations later.</p></li>
-<li><p>path: Where this location is on the file system. The location doesn’t need to be always present, but you should leave this blank if the location isn’t mounted in a consistent place or you have multiple devices that mount to the same location (e.g., memory cards in multiple cameras that are named the same way). If the path isn’t supplied, you will need to <a class="reference internal" href="#mounting-locations"><span class="std std-ref">mount</span></a> it before use</p></li>
-<li><p>description: A text description of the location</p></li>
-<li><p>source: Whether this location represents a source to import images from</p></li>
-<li><p>destination: Whether this location represents a place images are stored</p></li>
-<li><p>removable: Whether this device is removable storage</p></li>
+<p>If you are only using PicPocket on the same machine, you can pass the <cite>–local-actions</cite> flag to provide some additional functionality:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>web<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span><span class="w"> </span>--local-actions
+</pre></div>
+</div>
+<p>At present, all this adds is the ability to show an image file in Finder on macOS, but other functionality (e.g., open in Image Editor) may eventually be added.</p>
+<section id="setting-up-locations">
+<h2>Setting up Locations<a class="headerlink" href="#setting-up-locations" title="Permalink to this heading">¶</a></h2>
+<p>You can store you images wherever you want, but you do need to tell PicPocket where they can be found.
+To do that, you will need to set up some <a class="reference internal" href="locations.html"><span class="doc">locations</span></a>.</p>
+<section id="setting-up-a-destination">
+<h3>Setting up a Destination<a class="headerlink" href="#setting-up-a-destination" title="Permalink to this heading">¶</a></h3>
+<p>A destination represents a place on your computer where images are stored (e.g., <em>My Pictures</em>).
+If you store images on multiple places on your computer, you will need to create a separate destination for each place).</p>
+<p>To create a destination:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>navigate to ‘locations’ and click ‘add’</p></li>
+<li><p>fill out information about your destination:
+* Name: should be short and distinct. If you’re only storing photos in one place, this name could be broad like <em>photos</em> or <em>storage</em>
+* Description (optional): A brief description of the location to make it clear to you what it represents
+* Path (optional): The path to your location (e.g., <cite>/Users/name/Pictures</cite>, <cite>~/Pictures</cite>). Sorry that you have to type this out manually. You should provide a path
+* Type: Select ‘Destination’
+* Removable: Uncheck if you expect that location to be available any time PicPocket is running</p></li>
+<li><p>click ‘create’</p></li>
 </ul>
-<p>On the command line, you can add a location with the <cite>locations add</cite> command:</p>
+</div></blockquote>
+<p>Once the location is created, you can now import the images already at the location into PicPocket:</p>
+<ul class="simple">
+<li><p>click ‘import’</p></li>
+<li><p>options:
+* Creator: If all images are created by the same person, you can automatically label them as the creator at import
+* Tags: Any tags to apply to all images being imported. To add, fill in the text box and click ‘add’. To remove a tag, select it and click ‘remove’
+* Batch Size: If you enter a number here, PicPocket will save every time it attempts to add that many images during the import. If no number is provided, PicPocket will wait until all images are imported before saving.
+* File Formats: If you only want to import images of certain types into PicPocket, provide the file extension (with or without leading dot) one per line. If not provided, PicPocket will import its default image types</p></li>
+<li><p>click ‘Import’ and wait. Once the import is complete, you will be taken to a view of all imported images.</p></li>
+</ul>
+<p>Importing can be slow, and PicPocket currently doesn’t give any feedback while importing so it will look like your page has frozen.
+Give it some time.</p>
+<p>If you want to add a destination on the command line, you can use the <cite>locations add</cite> command.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>locations<span class="w"> </span>add<span class="w"> </span>main<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--description<span class="w"> </span><span class="s2">&quot;Main photo storage&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--destination<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--path<span class="w"> </span>~/Pictures
+</pre></div>
+</div>
+<p>By default, the command line interface will import automatically when a new destination is added.</p>
+</section>
+<section id="setting-up-a-source">
+<h3>Setting up a Source<a class="headerlink" href="#setting-up-a-source" title="Permalink to this heading">¶</a></h3>
+<p>A source represents a place to copy images from (such as a camera memory card).
+The process for adding a source is the same as adding a destination, but with one caveat: If you have multiple devices that mount at the same location (e.g., all your camera memory cards mount at <cite>/Volumes/mount/&lt;YOUR PHONE NUMBER&gt;</cite>), or your device doesn’t get mounted in a consistent location, you’ll want to leave the path blank and ‘mount’ the location before using it.</p>
+<ul class="simple">
+<li><p>navigate to ‘locations’ and click ‘add’</p></li>
+<li><p>fill out information about your source</p></li>
+<li><p>click ‘create’</p></li>
+</ul>
+<p>If you have multiple sources, you’ll need to repeat for each one.</p>
+<p>On the command line:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>locations<span class="w"> </span>add<span class="w"> </span>camera<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--description<span class="w"> </span><span class="s2">&quot;My camera&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--source<span class="w"> </span><span class="se">\</span>
@@ -77,74 +122,57 @@ Until several of those change, you should not make it generally accessible.</p>
 <span class="w">    </span>--path<span class="w"> </span>/Volumes/camera
 </pre></div>
 </div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>locations<span class="w"> </span>add<span class="w"> </span>main<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--description<span class="w"> </span><span class="s2">&quot;Main photo storage&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--destination<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--path<span class="w"> </span>~/Pictures
-</pre></div>
-</div>
-<p>In both the web and the command-line interfaces, destinations will have all images currently in them imported by default.</p>
+</section>
 <section id="mounting-locations">
 <h3>Mounting Locations<a class="headerlink" href="#mounting-locations" title="Permalink to this heading">¶</a></h3>
-<p>If you have added a location without a set path (or need to override the default path for a location), you will need to mount it.</p>
-<p>On the web interface, find the location and select ‘mount’ (probably).</p>
-<p>On the command line, commands requiring file access will all support the <cite>–mount</cite> flag that takes two arguments (location, path).</p>
-</section>
-</section>
-<section id="tasks">
-<h2>Tasks<a class="headerlink" href="#tasks" title="Permalink to this heading">¶</a></h2>
-<p>Tasks are ways of automatically copying images from a source to a destination.
-Tasks (currently) have the following properties:</p>
+<p>If you didn’t provide a path for one of your sources or destinations, you will need to do the following every time you use it:</p>
 <ul class="simple">
-<li><p>name: The unique name of the task</p></li>
-<li><p>source: The location to import images from</p></li>
-<li><p>destination: The location to copy images to</p></li>
-<li><p>creator: Who to list as the creator of the imported images</p></li>
-<li><p>tags: Any number of tags to apply to all imported images</p></li>
-<li><dl class="simple">
-<dt>source_path: Where (relative to the source location’s root) to start looking for images. If a path is supplied, any file within that directory (or a subdirectory thereof) will be added. For each level of the path, the path can either be a literal directory name or one of the following segments:</dt><dd><ul>
-<li><p>year: The year the photo was taken</p></li>
-<li><p>month: The month the photo was taken</p></li>
-<li><p>day: The day the photo was taken</p></li>
-<li><p>date (along with a format): the date the photo was taken</p></li>
-<li><p>regex (along with a pattern): A regex the directory must match</p></li>
+<li><p>navigate to ‘locations’ and find the desired location
+* this can either be done by selecting ‘list’ and scrolling down to the appropriate location or entering the name in the text box on the location page</p></li>
+<li><p>select ‘mount’</p></li>
+<li><p>enter the path to the location</p></li>
 </ul>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt>destination_format: Where (relative to the destination root) to copy image to. By default, photos are copied to a directory mirroring the source’s strcture. The following formatters are allowed when specifying this path:</dt><dd><ul>
-<li><p>path: The source filepath (relative to the source root).</p></li>
-<li><p>file: The file name (with extension)</p></li>
-<li><p>name: The file name (without extension)</p></li>
-<li><p>extension The file extension (without leading dot)</p></li>
-<li><p>uuid: a UUID4 hex</p></li>
-<li><p>date: A date object representing the source image’s last-modified date. You can supply the format to save the date using strftime formatting (e.g. <cite>date:%Y-%m-%d-%H-%M-%S</cite>)</p></li>
-<li><p>hash: A hash of the image’s contents</p></li>
-<li><p>index: A 1-indexed number representing the order the images were imported (PicPocket does not guarantee import order. This may add images in a non-chronological order)</p></li>
+<p>On the command line, commands that require access to files will have a <cite>–mount</cite> flag that either takes the path, or the name of the location and the path (depending on how many locations the command interfaces with).
+See <cite>–help</cite> for any given command for details.</p>
+</section>
+</section>
+<section id="creating-import-tasks">
+<h2>Creating Import Tasks<a class="headerlink" href="#creating-import-tasks" title="Permalink to this heading">¶</a></h2>
+<p><a class="reference internal" href="tasks.html"><span class="doc">Tasks</span></a> are ways of automatically copying images from a source to a destination.</p>
+<p>Currently, PicPocket makes the assumption that tasks are how you are adding new images (the alternative is re-importing a destination each time you add images and this method will be slow).</p>
+<p>You will want to create a task for each camera/image source you plan on managing through PicPocket.
+To create a task:</p>
+<ul class="simple">
+<li><p>navigate to ‘tasks’ and select add</p></li>
+<li><p>fill out information about your task
+* If you just want to mirror the structure of your source device, all you need to do is add a name, and set the source and destination appropriately
+* If you only want to copy images in some locations of your source device, or, you want to change image paths/names, you will need to read the source and destination formatting guides on the <a class="reference internal" href="tasks.html"><span class="doc">tasks</span></a> guide.</p></li>
+<li><p>click ‘create’</p></li>
 </ul>
-</dd>
-</dl>
-</li>
-</ul>
-<blockquote>
-<div><p>When running a task, photos will never be copied over top of existing photos. If a date-based source path is provided, subsequent runs of the task will only look at directories representing later dates than the last run time</p>
-<p>In the web interface, tasks can be created by selecting tasks and clicking add.
-They can then be run by pressing the task’s run button.</p>
+<p>Once your task is created, you’ll want run it by finding the task and selecting ‘run’.
+The first time a task is run, it will copy all images in the specified location on the device.
+After that, by default, the task will only look for images with last-modified dates from after it last ran.</p>
+<p>Whenever you run a task, you will be taken to the set of imported images.</p>
 <p>On the command line, you can create tasks with the <cite>tasks add</cite> command:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>tasks<span class="w"> </span>add<span class="w"> </span>camera-import<span class="w"> </span><span class="se">\</span>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>tasks<span class="w"> </span>add<span class="w"> </span>camera-import<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>camera<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>storage<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--path<span class="w"> </span>images<span class="w"> </span><span class="s2">&quot;{year}&quot;</span><span class="w"> </span><span class="s2">&quot;{month}&quot;</span><span class="w"> </span><span class="s2">&quot;{day}&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--path<span class="w"> </span><span class="s2">&quot;images/{year}/{month}/{day}&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--destination<span class="w"> </span><span class="s2">&quot;from-camera/{date:%Y}/{date:%m}/{file}&quot;</span>
 </pre></div>
 </div>
 </div></blockquote>
+<p>You can then run tasks using <cite>tasks run</cite></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>picpocket<span class="w"> </span>tasks<span class="w"> </span>run<span class="w"> </span>camera-import
+</pre></div>
+</div>
 </section>
 <section id="what-s-next">
 <h2>What’s Next<a class="headerlink" href="#what-s-next" title="Permalink to this heading">¶</a></h2>
 <p>Your PicPocket is now set up.
-You can now start <cite>managing your images &lt;images&gt;</cite></p>
+You can now start viewing and managing your <a class="reference internal" href="images.html"><span class="doc">images</span></a>, and adding <a class="reference internal" href="tags.html"><span class="doc">tags</span></a>.</p>
+<p>Enjoy!</p>
 </section>
 </section>
 
@@ -170,12 +198,15 @@ You can now start <cite>managing your images &lt;images&gt;</cite></p>
 <li class="toctree-l1"><a class="reference internal" href="../why.html">Why PicPocket?</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installing PicPocket</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Quick Start</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#locations">Locations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#tasks">Tasks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setting-up-locations">Setting up Locations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-import-tasks">Creating Import Tasks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#what-s-next">What’s Next</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="images.html">Managing Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="locations.html">Locations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="images.html">Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tags.html">Tags</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tasks.html">Tasks</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/index.html">PicPocket API</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../development/index.html">Developing PicPocket</a></li>
 </ul>
@@ -185,7 +216,7 @@ You can now start <cite>managing your images &lt;images&gt;</cite></p>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
       <li>Previous: <a href="installation.html" title="previous chapter">Installing PicPocket</a></li>
-      <li>Next: <a href="images.html" title="next chapter">Managing Images</a></li>
+      <li>Next: <a href="locations.html" title="next chapter">Locations</a></li>
   </ul></li>
 </ul>
 </div>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Tasks &#8212; PicPocket  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="PicPocket API" href="../api/index.html" />
+    <link rel="prev" title="Tags" href="tags.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="tasks">
+<h1>Tasks<a class="headerlink" href="#tasks" title="Permalink to this heading">¶</a></h1>
+<p>Tasks represent repeatable actions for copying <a class="reference internal" href="images.html"><span class="doc">images</span></a> from a source :doc:<a href="#id1"><span class="problematic" id="id2">``</span></a>location &lt;locations&gt;` to a destination location.
+Tasks provide some (limited) abilities to rename images when they’re copied in.</p>
+<section id="properties">
+<h2>Properties<a class="headerlink" href="#properties" title="Permalink to this heading">¶</a></h2>
+<dl>
+<dt>name</dt><dd><p>A unique name that succinctly describes the task</p>
+</dd>
+<dt>description</dt><dd><p>A description of what the task is/does. Descriptions are for your own purposes</p>
+</dd>
+<dt>source</dt><dd><p>The location you are copying images from. The task will not modify the source location in any way</p>
+</dd>
+<dt>destination</dt><dd><p>The location you are copying images to. The task will create files and folders at this location, but will not overwrite existing files (even if those files aren’t files in PicPocket).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>One slight caveat to the above: PicPocket tasks check if a file exists at that location prior to writing but the check and the write are not atomic (they do not happen in a single file system call), so it is theoretically possible to overwrite a file that was created in between that check and PicPocket copying the file. As long as you aren’t running something else that is copying a bunch of files to conflicting locations at the same time, this won’t be a problem</p>
+</div>
+</dd>
+<dt>creator</dt><dd><p>If all images imported by this task are created by the same person, you can have the task add that creator to all images stored. This information is stored within PicPocket, and will not be added to the image’s EXIF data.</p>
+</dd>
+<dt>tags</dt><dd><p>Any number of tags to apply to all imported images</p>
+</dd>
+<dt>source path</dt><dd><p>Where to look for images on the source location (relative to that location’s root). If not supplied, all directories will be searched through. If a path is supplied, all subdirectories of that path will be explored too.</p>
+<p>PicPocket provides some functionality for dynamic values in paths. See <a class="reference internal" href="#source-path-formatting"><span class="std std-ref">Source Path Formatting</span></a> for details.</p>
+</dd>
+<dt>destination formats</dt><dd><p>Where to save the image copies (relative to the destination root). If not supplied, the path used will mirror the path the file was found at <em>relative to the source root</em>.</p>
+<p>E.g.: If the source location root is <cite>/Volumes/camera</cite>, and the source path is <cite>dcim</cite>, and the destination root is <cite>~/Pictures</cite>, then an image found at <cite>/Volumes/camera/dcim/2023/01/01/123.jpg</cite> would be copied to <cite>~/Pictures/dcim/2023/01/01/123.jpg</cite>.</p>
+<p>PicPocket provides some functionality for dynamic values in paths. See <a class="reference internal" href="#destination-path-formatting"><span class="std std-ref">Destination Path Formatting</span></a> for details.</p>
+</dd>
+<dt>formats</dt><dd><p>Which kinds of image to copy. If not supplied, PicPocket will copy all image types it knows about.</p>
+</dd>
+</dl>
+<section id="source-path-formatting">
+<h3>Source Path Formatting<a class="headerlink" href="#source-path-formatting" title="Permalink to this heading">¶</a></h3>
+<p>PicPocket provides some limited functionality for dynamically describing a source path.
+This is done to make importing images from a device quicker (if you last imported from the device a day ago, there’s no point in it rechecking the 100 GB of photos you have in the 2010 folder). There are 6 special functions that exist, and they can be supplied by putting their name in angle brackets (e.g., <cite>directory/{year}/subdirectory</cite>). Only one special function can be given for a given directory in a path (i.e., <cite>directory/{year}{month}/subdirectory</cite> is not allowed).</p>
+<p>When a task runs (and isn’t run with the ‘full’ flag), any date-based directories representing a date older than the last-run date (or, if you supply one, a custom date) will be skipped.</p>
+<p>Custom Path Functions:</p>
+<dl>
+<dt>year</dt><dd><p>Will match against any directory name that looks like a year that isn’t older than the supplied year.</p>
+<p>E.g., <cite>directory/{year}</cite> would ignore any images in <cite>directory/2022</cite> if the supplied date was January 1st 2023 or later. Even if no date was supplied, it would ignore <cite>directory/subdirectory</cite> as ‘subdirectory’ doesn’t look like a year</p>
+</dd>
+<dt>month</dt><dd><p>Will match against any directory name that looks like a month (currently only a number!). If ‘year’ has been supplied as well, then folders representing older dates than that year/month combo will be ignored.</p>
+<p>E.g., <cite>directory/{year}/{month}</cite> would ignore any images in <cite>directory/2023/02</cite> unless the supplied date was February 28th, 2023 or earlier. If your directory structure has year as a subdirectory of month (e.g., <cite>directory/{month}/{year}</cite>) it will still work</p>
+</dd>
+<dt>day</dt><dd><p>Will match against any directory name that looks like a day (i.e., is a number between 1 and 31 inclusive, with or without leading 0). If ‘year’ and ‘month’ have been supplied as well, then folders representing older dates than that year/month/day combo will be ignored.</p>
+<p>E.g., <cite>directory/{year}/{month}/{day}</cite> would ignore any images in <cite>directory/2023/02/28</cite> unless the supplied date was February 28th, 2023 or earlier. This will work for any arbitrary ordering of year/month/day (e.g., <cite>directory/{day}/{month}/{year}</cite>). If your images are stored in day/month/year format, you should message me to tell me about why that is most useful (tracking weather/star positions over years?). If your images are stored in some scrambled date format, I would be happier not knowing but I’m glad PicPocket can help.</p>
+</dd>
+<dt>date <strong>requires a supplied date format</strong></dt><dd><p>Will match against directories if they are in the correct date format and the date isn’t older than the supplied date.</p>
+<p>Date formats are provided using Python’s <a class="reference external" href="https://strftime.org/">Strftime</a> date format, and are supplied after a colon (:) in the name.</p>
+<p>E.g., <cite>directory/{date:%Y-%m-%dT%H%M}</cite> would ignore <cite>directory/2023-02-28T1623</cite> unless the supplied date was 4:23 PM on February 28th, 2023 or earlier.</p>
+</dd>
+<dt>regex <strong>requires a supplied pattern</strong></dt><dd><p>Will match against directories if they match a (Perl Compatible) <a class="reference external" href="https://en.wikipedia.org/wiki/Perl_Compatible_Regular_Expressions">Regular Expression</a>. Patterns are supplied after a colon (:) in the name.</p>
+<p>E.g., <cite>directory/{regex:photo[s]?}</cite> would match against <cite>directory/photo</cite> and <cite>directory/photos</cite> and no other directories.</p>
+</dd>
+<dt>str <strong>requires supplied text</strong></dt><dd><p>If you want to tell a task to look in a directory with a <cite>{</cite> in it, PicPocket will assume you instead mistyped when trying to use any of the above special dynamic names. The str function is a way of passing that directory in a way that doesn’t confuse PicPocket.</p>
+<p>E.g., <cite>directory/{str:{my directory{}</cite> will match against <cite>directory/{my directory{</cite></p>
+</dd>
+</dl>
+</section>
+<section id="destination-path-formatting">
+<h3>Destination Path Formatting<a class="headerlink" href="#destination-path-formatting" title="Permalink to this heading">¶</a></h3>
+<p>PicPocket also has some limited functionality for renaming files when copying them over.
+This is done by supplied a path with any of the following placeholders:</p>
+<dl>
+<dt>directory</dt><dd><p>The directory the image was found in, relative to the source location root</p>
+<p>E.g., if the source root is <cite>/Volumes/camera</cite> and the image is found at <cite>Volumes/camera/abc/2023/02/28/123.jpg</cite>, ‘directory’ will be <cite>abc/2023/02/28</cite></p>
+</dd>
+<dt>file</dt><dd><p>The name of the image file.</p>
+<p>E.g., if the image is found at <cite>Volumes/camera/abc/2023/02/28/123.jpg</cite>, ‘file’ will be <cite>123.jpg</cite></p>
+</dd>
+<dt>name</dt><dd><p>The name of the image (without extension).</p>
+<p>E.g., if the image is found at <cite>Volumes/camera/abc/2023/02/28/123.jpg</cite>, ‘name’ will be <cite>123</cite></p>
+</dd>
+<dt>extension</dt><dd><p>The image file suffix (without leading dot).</p>
+<p>E.g., if the image is found at <cite>Volumes/camera/abc/2023/02/28/123.jpg</cite>, ‘extension’ will be <cite>jpg</cite></p>
+</dd>
+<dt>uuid</dt><dd><p>A UUID4 Hex (a hexadecimal number of the form <cite>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</cite>)</p>
+</dd>
+<dt>date</dt><dd><p>The last-modified date of the image in the <a class="reference external" href="https://strftime.org/">Strftime</a> date format of your choosing.</p>
+<p>E.g., if the image was last modifed at 4:23 PM on February 28th, 2023, <cite>{date:%Y}</cite> would be <cite>2023</cite> and <cite>{date:%B %-d, %Y}</cite> would be <cite>February 28, 2023</cite></p>
+</dd>
+<dt>hash</dt><dd><p>A hexidecimal number representing the image’s contents that <a class="reference external" href="https://en.wikipedia.org/wiki/Secure_Hash_Algorithms#Comparison_of_SHA_functions">should</a> uniquely represent that image.</p>
+<p>At present, the hash is a SHA-256 hash and will be 64 characters long. PicPocket reserves the right to modify this between versions</p>
+</dd>
+<dt>index</dt><dd><p>A 1-indexed number representing the order images are encountered by the task. PicPocket makes no promises about the order images are added in</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="running-tasks">
+<h2>Running Tasks<a class="headerlink" href="#running-tasks" title="Permalink to this heading">¶</a></h2>
+<p>By default, PicPocket tasks will only attempt to copy images with last-modified dates that are newer than the time the task last ran.</p>
+<p>You can manually supply an older or newer date to manually set the cutoff, or pass the ‘full’ flag to ignore last-modified date.</p>
+<p>PicPocket doesn’t look at the modified dates of directories, as they do not tend to accurately reflect changes in further subdirectories.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">PicPocket</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../why.html">Why PicPocket?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installing PicPocket</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="locations.html">Locations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="images.html">Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tags.html">Tags</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tasks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#properties">Properties</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-tasks">Running Tasks</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">PicPocket API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development/index.html">Developing PicPocket</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="tags.html" title="previous chapter">Tags</a></li>
+      <li>Next: <a href="../api/index.html" title="next chapter">PicPocket API</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, bcj.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 7.0.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="../_sources/usage/tasks.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

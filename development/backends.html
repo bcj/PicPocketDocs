@@ -389,7 +389,7 @@ be used. The following dyamic directory names are allowed:</p>
 images should be copied to. This is supplied as a format
 string with the following allowed formatters:</p>
 <ul>
-<li><p>path: The source filepath (relative to the source) root.</p></li>
+<li><p>directory: The source filepath (relative to the source) root.</p></li>
 <li><p>file: The file’s name</p></li>
 <li><p>name: The file’s name (without extension)</p></li>
 <li><p>extension: The file’s extension (without the leading
@@ -402,7 +402,7 @@ the date using strftime formatting (e.g.
 <li><p>hash: A hash of the image contents</p></li>
 <li><p>index: A 1-indexed number representing the order
 images are encountered by the running task. PicPocket
-makes no promised about the order images are added</p></li>
+makes no promises about the order images are added</p></li>
 </ul>
 </p></li>
 <li><p><strong>file_formats</strong> – Only import images that have these suffixes.
@@ -809,7 +809,7 @@ this offset.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="picpocket.database.dbapi.DbApi.verify_image_files">
-<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">verify_image_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../api/python.html#picpocket.database.types.Image" title="picpocket.database.types.Image"><span class="pre">picpocket.database.types.Image</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.verify_image_files" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">async</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">verify_image_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">location</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reparse_exif</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../api/python.html#picpocket.database.types.Image" title="picpocket.database.types.Image"><span class="pre">picpocket.database.types.Image</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#picpocket.database.dbapi.DbApi.verify_image_files" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check that images in PicPocket exist on-disk</p>
 <p>Check that images exist on-disk and that stored file information
 is accurate. If file metadata (e.g., dimensiosns, exif data) has
@@ -821,7 +821,9 @@ currently attached.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>location</strong> – Only check images in this location</p></li>
-<li><p><strong>directory</strong> (<em>path Only scan images within this</em>) – </p></li>
+<li><p><strong>path</strong> – Only scan images within this directory</p></li>
+<li><p><strong>reparse_exif</strong> – Reread EXIF data even if the image hasn’t been
+touched</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1181,7 +1183,10 @@ with user-supplied identifiers.</p>
 <li class="toctree-l1"><a class="reference internal" href="../why.html">Why PicPocket?</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../usage/installation.html">Installing PicPocket</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../usage/images.html">Managing Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/locations.html">Locations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/images.html">Images</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/tags.html">Tags</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/tasks.html">Tasks</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/index.html">PicPocket API</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Developing PicPocket</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">How to Adapt PicPocket to Another Database</a></li>
